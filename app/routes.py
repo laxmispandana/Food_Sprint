@@ -41,6 +41,10 @@ def current_user():
     return User.query.get(user_id) if user_id else None
 
 
+def admin_logged_in():
+    return session.get("admin_authenticated", False)
+
+
 def get_cart():
     return session.setdefault("cart", {})
 
@@ -70,7 +74,22 @@ def cart_context():
 
 @main_bp.app_context_processor
 def inject_globals():
-    return {"nav_user": current_user(), "cart_meta": cart_context()}
+    return {
+        "nav_user": current_user(),
+        "cart_meta": cart_context(),
+        "admin_logged_in": admin_logged_in(),
+    }
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if not admin_logged_in():
+            flash("Please log in as admin to continue.", "warning")
+            return redirect(url_for("main.admin_login"))
+        return view(*args, **kwargs)
+
+    return wrapped_view
 
 
 @main_bp.route("/")
@@ -129,6 +148,88 @@ def logout():
     session.clear()
     flash("You have been logged out.", "info")
     return redirect(url_for("main.index"))
+
+
+@main_bp.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        email = request.form["email"].strip().lower()
+        password = request.form["password"]
+        if (
+            email == current_app.config["ADMIN_EMAIL"].strip().lower()
+            and password == current_app.config["ADMIN_PASSWORD"]
+        ):
+            session["admin_authenticated"] = True
+            flash("Admin access granted.", "success")
+            return redirect(url_for("main.admin_dashboard"))
+
+        flash("Invalid admin credentials.", "danger")
+        return redirect(url_for("main.admin_login"))
+
+    return render_template("admin_login.html")
+
+
+@main_bp.route("/admin/logout")
+def admin_logout():
+    session.pop("admin_authenticated", None)
+    flash("Admin session closed.", "info")
+    return redirect(url_for("main.index"))
+
+
+@main_bp.route("/admin")
+@admin_required
+def admin_dashboard():
+    restaurants = Restaurant.query.order_by(Restaurant.name.asc()).all()
+    recent_orders = Order.query.order_by(Order.created_at.desc()).limit(8).all()
+    total_menu_items = MenuItem.query.count()
+    return render_template(
+        "admin_dashboard.html",
+        restaurants=restaurants,
+        recent_orders=recent_orders,
+        total_menu_items=total_menu_items,
+    )
+
+
+@main_bp.route("/admin/restaurants/new", methods=["POST"])
+@admin_required
+def admin_create_restaurant():
+    restaurant = Restaurant(
+        name=request.form["name"].strip(),
+        city=request.form["city"].strip(),
+        area=request.form["area"].strip(),
+        lat=float(request.form["lat"]),
+        lng=float(request.form["lng"]),
+        rating=float(request.form["rating"]),
+        category=request.form["category"].strip(),
+        cuisine=request.form["cuisine"].strip(),
+        image_url=request.form["image_url"].strip(),
+        delivery_time=int(request.form["delivery_time"]),
+        description=request.form["description"].strip(),
+    )
+    db.session.add(restaurant)
+    db.session.commit()
+    flash("Restaurant added successfully.", "success")
+    return redirect(url_for("main.admin_dashboard"))
+
+
+@main_bp.route("/admin/menu/new", methods=["POST"])
+@admin_required
+def admin_create_menu_item():
+    item = MenuItem(
+        restaurant_id=int(request.form["restaurant_id"]),
+        name=request.form["name"].strip(),
+        description=request.form["description"].strip(),
+        price=float(request.form["price"]),
+        image_url=request.form["image_url"].strip(),
+        category=request.form["category"].strip(),
+        food_type=request.form["food_type"].strip(),
+        calories=int(request.form["calories"]) if request.form.get("calories") else None,
+        healthy_badge=bool(request.form.get("healthy_badge")),
+    )
+    db.session.add(item)
+    db.session.commit()
+    flash("Menu item added successfully.", "success")
+    return redirect(url_for("main.admin_dashboard"))
 
 
 @main_bp.route("/restaurants/<int:restaurant_id>")

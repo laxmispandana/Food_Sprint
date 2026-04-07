@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel{% endblock %}
+{% block content %}
+<section class="section">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Admin panel</p>
+            <h1>Manage restaurants and menu items</h1>
+        </div>
+        <p class="section-copy">Create new listings, add dishes, and monitor recent orders from one control area.</p>
+    </div>
+
+    <div class="hero-stats admin-stats">
+        <div><strong>{{ restaurants|length }}</strong><span>Restaurants</span></div>
+        <div><strong>{{ total_menu_items }}</strong><span>Menu items</span></div>
+        <div><strong>{{ recent_orders|length }}</strong><span>Recent orders tracked</span></div>
+    </div>
+</section>
+
+<section class="section admin-grid">
+    <form class="admin-card" method="post" action="{{ url_for('main.admin_create_restaurant') }}">
+        <p class="eyebrow">Add restaurant</p>
+        <h2>New restaurant</h2>
+        <label>Name<input type="text" name="name" required></label>
+        <label>City<input type="text" name="city" required></label>
+        <label>Area<input type="text" name="area" required></label>
+        <label>Latitude<input type="number" step="any" name="lat" required></label>
+        <label>Longitude<input type="number" step="any" name="lng" required></label>
+        <label>Rating<input type="number" step="0.1" min="0" max="5" name="rating" required></label>
+        <label>Category
+            <select name="category" required>
+                <option value="veg">Veg</option>
+                <option value="non-veg">Non-veg</option>
+                <option value="diet">Diet</option>
+            </select>
+        </label>
+        <label>Cuisine<input type="text" name="cuisine" required></label>
+        <label>Image URL<input type="url" name="image_url" required></label>
+        <label>Delivery time (mins)<input type="number" name="delivery_time" required></label>
+        <label>Description<textarea name="description" rows="4" required></textarea></label>
+        <button class="btn btn-primary" type="submit">Add restaurant</button>
+    </form>
+
+    <form class="admin-card" method="post" action="{{ url_for('main.admin_create_menu_item') }}">
+        <p class="eyebrow">Add menu item</p>
+        <h2>New dish</h2>
+        <label>Restaurant
+            <select name="restaurant_id" required>
+                {% for restaurant in restaurants %}
+                    <option value="{{ restaurant.id }}">{{ restaurant.name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Dish name<input type="text" name="name" required></label>
+        <label>Description<textarea name="description" rows="4" required></textarea></label>
+        <label>Price<input type="number" step="0.01" name="price" required></label>
+        <label>Image URL<input type="url" name="image_url" required></label>
+        <label>Category
+            <select name="category" required>
+                <option value="diet">Diet</option>
+                <option value="fast food">Fast Food</option>
+                <option value="protein">Protein</option>
+                <option value="balanced">Balanced</option>
+                <option value="dessert">Dessert</option>
+            </select>
+        </label>
+        <label>Food type
+            <select name="food_type" required>
+                <option value="veg">Veg</option>
+                <option value="non-veg">Non-veg</option>
+            </select>
+        </label>
+        <label>Calories<input type="number" name="calories"></label>
+        <label class="toggle">
+            <input type="checkbox" name="healthy_badge">
+            <span>Healthy badge</span>
+        </label>
+        <button class="btn btn-primary" type="submit">Add menu item</button>
+    </form>
+</section>
+
+<section class="section admin-grid">
+    <div class="admin-card">
+        <p class="eyebrow">Current restaurants</p>
+        <h2>Listings</h2>
+        <div class="admin-list">
+            {% for restaurant in restaurants %}
+                <div class="summary-row">
+                    <span>{{ restaurant.name }} • {{ restaurant.city }}</span>
+                    <strong>{{ restaurant.menu_items|length }} items</strong>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="admin-card">
+        <p class="eyebrow">Recent orders</p>
+        <h2>Latest activity</h2>
+        <div class="admin-list">
+            {% for order in recent_orders %}
+                <div class="summary-row">
+                    <span>Order #{{ order.id }} • {{ order.user.name }}</span>
+                    <strong>Rs. {{ "%.0f"|format(order.total_amount) }}</strong>
+                </div>
+            {% else %}
+                <p>No orders yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

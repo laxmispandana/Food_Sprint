@@ -13,6 +13,7 @@ A production-oriented Flask web application that combines food delivery workflow
 - Goal-based diet planner for weight loss, muscle gain, balanced diet, and vegetarian preferences
 - History-based recommendations driven by previous orders
 - Dynamic food imagery via Spoonacular recipe search
+- Admin panel for adding restaurants and menu items
 
 ## Stack
 
@@ -55,6 +56,8 @@ python refresh_images.py
 - `STRIPE_SECRET_KEY`
 - `STRIPE_PUBLISHABLE_KEY`
 - `SPOONACULAR_API_KEY`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
 - `APP_BASE_URL`
 
 ## Deployment

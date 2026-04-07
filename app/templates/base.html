@@ -22,6 +22,11 @@
         <nav class="nav-links">
             <a href="{{ url_for('main.index') }}">Explore</a>
             <a href="{{ url_for('main.diet') }}">AI Diet Planner</a>
+            {% if admin_logged_in %}
+                <a href="{{ url_for('main.admin_dashboard') }}">Admin</a>
+            {% else %}
+                <a href="{{ url_for('main.admin_login') }}">Admin Login</a>
+            {% endif %}
             <a href="{{ url_for('main.cart') }}" class="cart-link">Cart <span class="cart-badge" id="cart-badge">{{ cart_meta.count }}</span></a>
             {% if nav_user %}
                 <span class="user-chip">{{ nav_user.name }}</span>
@@ -29,6 +34,9 @@
             {% else %}
                 <a href="{{ url_for('main.login') }}">Login</a>
                 <a href="{{ url_for('main.signup') }}" class="btn btn-primary">Sign up</a>
+            {% endif %}
+            {% if admin_logged_in %}
+                <a href="{{ url_for('main.admin_logout') }}">Admin Logout</a>
             {% endif %}
         </nav>
     </header>

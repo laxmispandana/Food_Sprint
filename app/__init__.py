@@ -22,6 +22,8 @@ def create_app():
     app.config["STRIPE_PUBLISHABLE_KEY"] = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
     app.config["SPOONACULAR_API_KEY"] = os.getenv("SPOONACULAR_API_KEY", "")
     app.config["APP_BASE_URL"] = os.getenv("APP_BASE_URL", "http://127.0.0.1:5000")
+    app.config["ADMIN_EMAIL"] = os.getenv("ADMIN_EMAIL", "admin@telanganaeats.local")
+    app.config["ADMIN_PASSWORD"] = os.getenv("ADMIN_PASSWORD", "admin123")
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.config["SESSION_COOKIE_SECURE"] = os.getenv("FLASK_ENV") == "production"

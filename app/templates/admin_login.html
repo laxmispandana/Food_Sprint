@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Admin Login{% endblock %}
+{% block content %}
+<section class="auth-shell">
+    <form class="auth-card" method="post">
+        <p class="eyebrow">Admin access</p>
+        <h1>Login to the admin panel</h1>
+        <label>Email<input type="email" name="email" required></label>
+        <label>Password<input type="password" name="password" required></label>
+        <button class="btn btn-primary" type="submit">Enter admin panel</button>
+        <p class="auth-switch">Use the credentials from your `.env` file.</p>
+    </form>
+</section>
+{% endblock %}
