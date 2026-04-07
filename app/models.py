@@ -14,6 +14,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     orders = db.relationship("Order", backref="user", lazy=True)
+    reviews = db.relationship("Review", backref="user", lazy=True)
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -36,6 +37,7 @@ class Restaurant(db.Model):
     delivery_time = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text, nullable=False)
     menu_items = db.relationship("MenuItem", backref="restaurant", lazy=True)
+    reviews = db.relationship("Review", backref="restaurant", lazy=True)
 
 
 class MenuItem(db.Model):
@@ -51,6 +53,7 @@ class MenuItem(db.Model):
     food_type = db.Column(db.String(20), nullable=False)
     calories = db.Column(db.Integer, nullable=True)
     healthy_badge = db.Column(db.Boolean, default=False, nullable=False)
+    review_items = db.relationship("Review", backref="menu_item", lazy=True)
 
 
 class Order(db.Model):
@@ -73,3 +76,31 @@ class OrderItem(db.Model):
     quantity = db.Column(db.Integer, nullable=False, default=1)
     price = db.Column(db.Float, nullable=False)
     menu_item = db.relationship("MenuItem")
+
+
+class Admin(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+
+class Review(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    restaurant_id = db.Column(
+        db.Integer, db.ForeignKey("restaurant.id"), nullable=False, index=True
+    )
+    menu_item_id = db.Column(
+        db.Integer, db.ForeignKey("menu_item.id"), nullable=True, index=True
+    )
+    rating = db.Column(db.Integer, nullable=False)
+    comment = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)

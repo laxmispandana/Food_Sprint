@@ -1,8 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ restaurant.name }}{% endblock %}
 {% block content %}
-<section class="detail-hero">
-    <img src="{{ restaurant.image_url }}" alt="{{ restaurant.name }}" class="detail-cover">
+<section class="detail-hero detail-split">
     <div class="detail-copy">
         <p class="eyebrow">{{ restaurant.city }} • {{ restaurant.area }}</p>
         <h1>{{ restaurant.name }}</h1>
@@ -14,40 +13,122 @@
             <span>{{ restaurant.category|title }}</span>
         </div>
     </div>
+    <img loading="lazy" src="{{ restaurant.image_url }}" alt="{{ restaurant.name }}" class="detail-cover">
+</section>
+
+<section class="section">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Recommended</p>
+            <h2>Top picks from {{ restaurant.name }}</h2>
+        </div>
+    </div>
+    <div class="menu-grid compact-grid">
+        {% for item in recommended_items %}
+            <article class="menu-card">
+                <img loading="lazy" src="{{ item.image_url }}" alt="{{ item.name }}">
+                <div class="menu-card-body">
+                    <div class="menu-topline">
+                        {% for tag in menu_item_tags(item)[:2] %}
+                            <span class="tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    <h3>{{ item.name }}</h3>
+                    <p>{{ item.calories or 'Balanced' }} kcal • {{ item.category|title }}</p>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
 </section>
 
 <section class="section">
     <div class="section-heading">
         <div>
             <p class="eyebrow">Menu</p>
-            <h2>Fresh picks from {{ restaurant.name }}</h2>
+            <h2>Restaurant menu</h2>
         </div>
     </div>
-    <div class="menu-grid">
+    <div class="menu-list">
         {% for item in menu_items %}
-            <article class="menu-card">
-                <img src="{{ item.image_url }}" alt="{{ item.name }}">
-                <div class="menu-card-body">
+            <article class="menu-list-item {% if 'Popular 🔥' in menu_item_tags(item) %}menu-list-item-featured{% endif %}">
+                <div class="menu-list-copy">
                     <div class="menu-topline">
-                        <span class="tag">{{ item.food_type|title }}</span>
-                        {% if item.healthy_badge %}<span class="healthy-pill">Healthy</span>{% endif %}
+                        {% for tag in menu_item_tags(item) %}
+                            <span class="tag">{{ tag }}</span>
+                        {% endfor %}
                     </div>
                     <h3>{{ item.name }}</h3>
                     <p>{{ item.description }}</p>
                     <div class="nutrition-row">
-                        <span>{{ item.category|title }}</span>
-                        {% if item.calories %}<span>{{ item.calories }} kcal</span>{% endif %}
+                        <span>Rs. {{ "%.0f"|format(item.price) }}</span>
+                        <span>{{ item.calories or 'Balanced' }} kcal</span>
+                        <span>{{ item.food_type|title }}</span>
                     </div>
-                    <div class="menu-footer">
-                        <strong>Rs. {{ "%.0f"|format(item.price) }}</strong>
-                        <form method="post" action="{{ url_for('main.add_to_cart') }}">
-                            <input type="hidden" name="item_id" value="{{ item.id }}">
-                            <button class="btn btn-mini" type="submit">Add to cart</button>
-                        </form>
-                    </div>
+                </div>
+                <div class="menu-list-media">
+                    <img loading="lazy" src="{{ item.image_url }}" alt="{{ item.name }}">
+                    <form method="post" action="{{ url_for('main.add_to_cart') }}">
+                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                        <button class="floating-add-btn" type="submit">ADD</button>
+                    </form>
                 </div>
             </article>
         {% endfor %}
+    </div>
+</section>
+
+<section class="section admin-grid">
+    <div class="admin-card">
+        <p class="eyebrow">Customer reviews</p>
+        <h2>What people are saying</h2>
+        <div class="admin-list">
+            {% for review in reviews %}
+                <div class="review-card">
+                    <div class="review-top">
+                        <strong>{{ review.user.name }}</strong>
+                        <span>{{ review.rating }}/5</span>
+                    </div>
+                    {% if review.menu_item %}
+                        <p class="review-item">{{ review.menu_item.name }}</p>
+                    {% endif %}
+                    <p>{{ review.comment }}</p>
+                </div>
+            {% else %}
+                <p>No reviews yet. Be the first to share feedback.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="admin-card">
+        <p class="eyebrow">Add your review</p>
+        <h2>Rate this restaurant</h2>
+        {% if nav_user %}
+            <form method="post" action="{{ url_for('main.add_review', restaurant_id=restaurant.id) }}">
+                <label>Menu item
+                    <select name="menu_item_id">
+                        <option value="">General restaurant review</option>
+                        {% for item in menu_items %}
+                            <option value="{{ item.id }}">{{ item.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label>Rating
+                    <select name="rating" required>
+                        <option value="5">5</option>
+                        <option value="4">4</option>
+                        <option value="3">3</option>
+                        <option value="2">2</option>
+                        <option value="1">1</option>
+                    </select>
+                </label>
+                <label>Comment
+                    <textarea name="comment" rows="5" required placeholder="Share your experience with the food, delivery, and presentation."></textarea>
+                </label>
+                <button class="btn btn-primary" type="submit">Submit review</button>
+            </form>
+        {% else %}
+            <p>Please <a href="{{ url_for('main.login') }}">log in</a> to post a review.</p>
+        {% endif %}
     </div>
 </section>
 {% endblock %}

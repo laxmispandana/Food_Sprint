@@ -4,7 +4,7 @@
 <section class="section">
     <div class="section-heading">
         <div>
-            <p class="eyebrow">Cart</p>
+            <p class="eyebrow">FoodSprint Cart</p>
             <h1>Your order basket</h1>
         </div>
     </div>
@@ -13,11 +13,15 @@
             <div class="cart-items">
                 {% for item in cart_data.entries %}
                     <article class="cart-item">
-                        <img src="{{ item.menu_item.image_url }}" alt="{{ item.menu_item.name }}">
-                        <div>
+                        <img loading="lazy" src="{{ item.menu_item.image_url }}" alt="{{ item.menu_item.name }}">
+                        <div class="cart-item-copy">
                             <h3>{{ item.menu_item.name }}</h3>
                             <p>{{ item.menu_item.restaurant.name }}</p>
-                            <span class="tag">{{ item.menu_item.category|title }}</span>
+                            <div class="nutrition-row">
+                                {% for tag in menu_item_tags(item.menu_item) %}
+                                    <span class="tag">{{ tag }}</span>
+                                {% endfor %}
+                            </div>
                         </div>
                         <form method="post" action="{{ url_for('main.update_cart') }}" class="quantity-form">
                             <input type="hidden" name="item_id" value="{{ item.menu_item.id }}">
@@ -32,7 +36,7 @@
                 <h3>Price summary</h3>
                 <div class="summary-row"><span>Items</span><strong>{{ cart_data.count }}</strong></div>
                 <div class="summary-row"><span>Total</span><strong>Rs. {{ "%.0f"|format(cart_data.total) }}</strong></div>
-                <a href="{{ url_for('main.checkout') }}" class="btn btn-primary summary-btn">Proceed to checkout</a>
+                <a href="{{ url_for('main.checkout') }}" class="btn btn-primary summary-btn">Proceed to payment</a>
             </aside>
         </div>
     {% else %}

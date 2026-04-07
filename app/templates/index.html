@@ -1,47 +1,44 @@
 {% extends "base.html" %}
-{% block title %}Telangana Smart Eats{% endblock %}
+{% block title %}FoodSprint{% endblock %}
 {% block content %}
 <section class="hero">
     <div class="hero-copy">
-        <div class="hero-visual-grid">
-            <article class="hero-visual-card hero-visual-large">
-                <img src="https://images.pexels.com/photos/776538/pexels-photo-776538.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Restaurant interior">
-                <div class="hero-visual-caption">
-                    <span class="tag">Restaurants</span>
-                    <h2>Discover places across Telangana</h2>
-                </div>
-            </article>
-            <article class="hero-visual-card">
-                <img src="https://images.pexels.com/photos/9738983/pexels-photo-9738983.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Biryani dish">
-                <div class="hero-visual-caption">
-                    <span class="tag">Food</span>
-                    <h3>Popular local dishes</h3>
-                </div>
-            </article>
-            <article class="hero-visual-card">
-                <img src="https://images.pexels.com/photos/15795823/pexels-photo-15795823.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Healthy meal">
-                <div class="hero-visual-caption">
-                    <span class="tag">Diet</span>
-                    <h3>Healthy recommendations</h3>
-                </div>
-            </article>
-        </div>
+        <p class="eyebrow">FoodSprint</p>
+        <h1>Delivery, diet AI, and smart restaurant discovery for Telangana.</h1>
+        <p class="hero-text">Find nearby restaurants with live GPS, browse menu images matched by dish name, and get explainable AI suggestions for every food goal.</p>
         <div class="hero-actions">
             <a href="#restaurants" class="btn btn-primary">Start ordering</a>
             <a href="{{ url_for('main.diet') }}" class="btn btn-secondary">Plan my diet</a>
         </div>
         <div class="hero-stats">
-            <div><strong>{{ restaurants|length }}</strong><span>Restaurants seeded</span></div>
-            <div><strong>50+</strong><span>Dynamic menu items</span></div>
-            <div><strong>AI</strong><span>History-based recommendations</span></div>
+            <div><strong>{{ restaurants|length }}</strong><span>Telangana kitchens</span></div>
+            <div><strong>50+</strong><span>Live food image cards</span></div>
+            <div><strong>AI</strong><span>Diet and history signals</span></div>
         </div>
     </div>
     <div class="hero-panel">
-        <div class="panel-card glass">
-            <img src="https://images.pexels.com/photos/825661/pexels-photo-825661.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Food delivery spread" class="hero-feature-image">
-            <span class="panel-label">Live food and restaurant imagery</span>
-            <h3>Built for Hyderabad to Khammam</h3>
-            <p>Browse restaurant photos, menu images, and nearby locations in one ordering flow.</p>
+        <div class="hero-visual-grid">
+            <article class="hero-visual-card hero-visual-large">
+                <img loading="lazy" src="https://images.pexels.com/photos/1640774/pexels-photo-1640774.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="FoodSprint featured bowls">
+                <div class="hero-visual-caption">
+                    <span class="tag">Smart bowls</span>
+                    <h2>Healthy meals and protein-heavy picks</h2>
+                </div>
+            </article>
+            <article class="hero-visual-card">
+                <img loading="lazy" src="https://images.pexels.com/photos/4224314/pexels-photo-4224314.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Biryani spread">
+                <div class="hero-visual-caption">
+                    <span class="tag">Popular</span>
+                    <h3>Swiggy-style discovery cards</h3>
+                </div>
+            </article>
+            <article class="hero-visual-card">
+                <img loading="lazy" src="https://images.pexels.com/photos/257816/pexels-photo-257816.jpeg?auto=compress&cs=tinysrgb&w=1200" alt="Fresh salad bowl">
+                <div class="hero-visual-caption">
+                    <span class="tag">Diet AI</span>
+                    <h3>Explainable food guidance</h3>
+                </div>
+            </article>
         </div>
         <div id="map" class="map-card"></div>
     </div>
@@ -50,10 +47,10 @@
 <section class="section" id="restaurants">
     <div class="section-heading">
         <div>
-            <p class="eyebrow">Discover</p>
+            <p class="eyebrow">Nearby now</p>
             <h2>Restaurants near you</h2>
         </div>
-        <p class="section-copy">Use GPS to reorder listings by distance, then narrow the feed with food type, health-first meals, and ratings.</p>
+        <p class="section-copy">FoodSprint shows nearby restaurants first, filters them within a live radius, and highlights healthy and popular picks automatically.</p>
     </div>
 
     <div class="filters">
@@ -74,10 +71,15 @@
             <input type="checkbox" id="healthy-filter">
             <span>Healthy only</span>
         </label>
+        <select id="radius-filter">
+            <option value="10">Within 10 km</option>
+            <option value="5">Within 5 km</option>
+            <option value="25">Within 25 km</option>
+        </select>
         <button type="button" class="btn btn-secondary" id="location-btn">Use my location</button>
     </div>
 
-    <div id="location-status" class="location-status">Showing all Telangana locations. Enable GPS for nearest-first delivery cards.</div>
+    <div id="location-status" class="location-status">Showing Telangana restaurants. Enable GPS to show nearby restaurants within your selected radius.</div>
     <div class="restaurant-grid" id="restaurant-grid"></div>
 </section>
 
@@ -91,14 +93,15 @@
     <div class="menu-grid compact-grid">
         {% for item in recommendations %}
             <article class="menu-card">
-                <img src="{{ item.image_url }}" alt="{{ item.name }}">
+                <img loading="lazy" src="{{ item.image_url }}" alt="{{ item.name }}">
                 <div class="menu-card-body">
                     <div class="menu-topline">
-                        <span class="tag">{{ item.category|replace('_', ' ')|title }}</span>
-                        {% if item.healthy_badge %}<span class="healthy-pill">Healthy</span>{% endif %}
+                        {% for tag in menu_item_tags(item)[:2] %}
+                            <span class="tag">{{ tag }}</span>
+                        {% endfor %}
                     </div>
                     <h3>{{ item.name }}</h3>
-                    <p>{{ item.restaurant.name }}</p>
+                    <p>{{ item.restaurant.name }} • {{ item.calories or 'Balanced' }} kcal</p>
                     <div class="menu-footer">
                         <strong>Rs. {{ "%.0f"|format(item.price) }}</strong>
                         <a href="{{ url_for('main.restaurant_detail', restaurant_id=item.restaurant_id) }}" class="btn btn-mini">View</a>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}AI Smart Food Ordering and Diet Recommendation System for Telangana{% endblock %}</title>
+    <title>{% block title %}FoodSprint{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
@@ -13,12 +13,15 @@
 <body>
     <header class="site-header">
         <a href="{{ url_for('main.index') }}" class="brand">
-            <span class="brand-mark">TS</span>
+            <span class="brand-mark">FS</span>
             <div>
-                <strong>Telangana Smart Eats</strong>
-                <small>AI food delivery and diet concierge</small>
+                <strong>FoodSprint</strong>
+                <small>Telangana smart food ordering</small>
             </div>
         </a>
+        <div class="nav-search-shell">
+            <input type="search" id="nav-search" class="nav-search-input" placeholder="Search biryani, dosa, healthy bowls">
+        </div>
         <nav class="nav-links">
             <a href="{{ url_for('main.index') }}">Explore</a>
             <a href="{{ url_for('main.diet') }}">AI Diet Planner</a>
@@ -26,6 +29,7 @@
                 <a href="{{ url_for('main.admin_dashboard') }}">Admin</a>
             {% else %}
                 <a href="{{ url_for('main.admin_login') }}">Admin Login</a>
+                <a href="{{ url_for('main.admin_register') }}">Admin Register</a>
             {% endif %}
             <a href="{{ url_for('main.cart') }}" class="cart-link">Cart <span class="cart-badge" id="cart-badge">{{ cart_meta.count }}</span></a>
             {% if nav_user %}

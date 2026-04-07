@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Admin Register{% endblock %}
+{% block content %}
+<section class="auth-shell">
+    <form class="auth-card" method="post">
+        <p class="eyebrow">Admin registration</p>
+        <h1>Create an admin account</h1>
+        <label>Name<input type="text" name="name" required></label>
+        <label>Email<input type="email" name="email" required></label>
+        <label>Password<input type="password" name="password" minlength="6" required></label>
+        <button class="btn btn-primary" type="submit">Create admin account</button>
+        <p class="auth-switch">Already an admin? <a href="{{ url_for('main.admin_login') }}">Log in</a></p>
+    </form>
+</section>
+{% endblock %}

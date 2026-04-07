@@ -95,15 +95,47 @@
 
     <div class="admin-card">
         <p class="eyebrow">Recent orders</p>
-        <h2>Latest activity</h2>
+        <h2>Restaurant order visibility</h2>
         <div class="admin-list">
-            {% for order in recent_orders %}
-                <div class="summary-row">
-                    <span>Order #{{ order.id }} • {{ order.user.name }}</span>
-                    <strong>Rs. {{ "%.0f"|format(order.total_amount) }}</strong>
+            {% for summary in order_summaries %}
+                <div class="order-visibility-card">
+                    <div class="summary-row">
+                        <span>Order #{{ summary.order.id }} • {{ summary.order.user.name }}</span>
+                        <strong>Rs. {{ "%.0f"|format(summary.order.total_amount) }}</strong>
+                    </div>
+                    {% for info in summary.restaurants %}
+                        <div class="order-restaurant-line">
+                            <strong>{{ info.restaurant.name }}</strong>
+                            <span>{{ info.quantity }} item(s)</span>
+                        </div>
+                        <p class="order-items">{{ info.item_names|join(', ') }}</p>
+                    {% endfor %}
                 </div>
             {% else %}
                 <p>No orders yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="admin-card">
+        <p class="eyebrow">User reviews</p>
+        <h2>Latest customer feedback</h2>
+        <div class="admin-list">
+            {% for review in recent_reviews %}
+                <div class="review-card">
+                    <div class="review-top">
+                        <strong>{{ review.user.name }} on {{ review.restaurant.name }}</strong>
+                        <span>{{ review.rating }}/5</span>
+                    </div>
+                    {% if review.menu_item %}
+                        <p class="review-item">{{ review.menu_item.name }}</p>
+                    {% endif %}
+                    <p>{{ review.comment }}</p>
+                </div>
+            {% else %}
+                <p>No reviews yet.</p>
             {% endfor %}
         </div>
     </div>

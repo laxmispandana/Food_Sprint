@@ -18,9 +18,9 @@ def create_app():
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.config["STRIPE_SECRET_KEY"] = os.getenv("STRIPE_SECRET_KEY", "")
-    app.config["STRIPE_PUBLISHABLE_KEY"] = os.getenv("STRIPE_PUBLISHABLE_KEY", "")
     app.config["SPOONACULAR_API_KEY"] = os.getenv("SPOONACULAR_API_KEY", "")
+    app.config["RAZORPAY_KEY_ID"] = os.getenv("RAZORPAY_KEY_ID", "")
+    app.config["RAZORPAY_KEY_SECRET"] = os.getenv("RAZORPAY_KEY_SECRET", "")
     app.config["APP_BASE_URL"] = os.getenv("APP_BASE_URL", "http://127.0.0.1:5000")
     app.config["ADMIN_EMAIL"] = os.getenv("ADMIN_EMAIL", "admin@telanganaeats.local")
     app.config["ADMIN_PASSWORD"] = os.getenv("ADMIN_PASSWORD", "admin123")

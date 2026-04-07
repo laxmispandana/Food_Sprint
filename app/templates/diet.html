@@ -22,20 +22,22 @@
     <div class="diet-grid">
         <div class="summary-card">
             <h3>Recommended for {{ result.goal }}</h3>
-            {% for item in result.recommended %}
+            {% for entry in result.recommended %}
                 <div class="summary-row">
-                    <span>{{ item.name }}</span>
-                    <strong>{{ item.restaurant.name }}</strong>
+                    <span>{{ entry.item.name }} • {{ entry.item.calories or 'Balanced' }} kcal</span>
+                    <strong>{{ entry.item.restaurant.name }}</strong>
                 </div>
+                <p>{{ entry.reason }}</p>
             {% endfor %}
         </div>
         <div class="summary-card">
             <h3>Foods to avoid or limit</h3>
-            {% for item in result.avoid %}
+            {% for entry in result.avoid %}
                 <div class="summary-row">
-                    <span>{{ item.name }}</span>
-                    <strong>{{ item.category|title }}</strong>
+                    <span>{{ entry.item.name }} • {{ entry.item.calories or 'Balanced' }} kcal</span>
+                    <strong>{{ entry.item.category|title }}</strong>
                 </div>
+                <p>{{ entry.reason }}</p>
             {% else %}
                 <p>No strict avoid list for this goal.</p>
             {% endfor %}

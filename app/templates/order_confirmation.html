@@ -24,10 +24,15 @@
     <div class="menu-grid compact-grid">
         {% for item in recommendations %}
             <article class="menu-card">
-                <img src="{{ item.image_url }}" alt="{{ item.name }}">
+                <img loading="lazy" src="{{ item.image_url }}" alt="{{ item.name }}">
                 <div class="menu-card-body">
+                    <div class="menu-topline">
+                        {% for tag in menu_item_tags(item)[:2] %}
+                            <span class="tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
                     <h3>{{ item.name }}</h3>
-                    <p>{{ item.restaurant.name }}</p>
+                    <p>{{ item.restaurant.name }} • {{ item.calories or 'Balanced' }} kcal</p>
                     <div class="menu-footer">
                         <strong>Rs. {{ "%.0f"|format(item.price) }}</strong>
                         <form method="post" action="{{ url_for('main.add_to_cart') }}">

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Payment Failed{% endblock %}
+{% block content %}
+<section class="section">
+    <div class="confirmation-card">
+        <p class="eyebrow">Payment issue</p>
+        <h1>Payment could not be completed</h1>
+        <p>Your Razorpay payment was cancelled or failed. {% if order %}Order #{{ order.id }} is marked as failed and can be retried.{% endif %}</p>
+        <div class="hero-actions">
+            <a href="{{ url_for('main.checkout') }}" class="btn btn-primary">Try again</a>
+            <a href="{{ url_for('main.cart') }}" class="btn btn-secondary">Back to cart</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

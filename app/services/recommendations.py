@@ -37,6 +37,21 @@ BEHAVIOR_RULES = {
     "biryani": ["Tandoori Chicken", "Green Salad Platter", "Double Ka Meetha"],
     "salad": ["Greek Yogurt Parfait", "Cold-Pressed Juice", "Lean Chicken Bowl"],
     "roll": ["BBQ Chicken Wings", "Choco Mousse", "Brown Rice Bowl"],
+    "dosa": ["Mini Idli Sambar", "Cold-Pressed Juice", "Protein Idli Plate"],
+    "bowl": ["Greek Yogurt Parfait", "Caesar Salad", "Paneer Protein Bowl"],
+}
+
+
+HIGH_PROTEIN_KEYWORDS = {
+    "chicken",
+    "egg",
+    "fish",
+    "paneer",
+    "protein",
+    "tofu",
+    "turkey",
+    "salmon",
+    "mutton",
 }
 
 
@@ -70,7 +85,25 @@ def build_diet_recommendation(goal):
         .limit(5)
         .all()
     )
-    return {"goal": rule["label"], "recommended": recommended, "avoid": avoid}
+    return {
+        "goal": rule["label"],
+        "recommended": [
+            {
+                "item": item,
+                "reason": explain_diet_match(item, goal),
+                "tags": menu_item_tags(item),
+            }
+            for item in recommended
+        ],
+        "avoid": [
+            {
+                "item": item,
+                "reason": explain_avoid_match(item, goal),
+                "tags": menu_item_tags(item),
+            }
+            for item in avoid
+        ],
+    }
 
 
 def history_based_recommendations(user_id):
@@ -108,3 +141,44 @@ def history_based_recommendations(user_id):
             ordered_names.append(name)
 
     return MenuItem.query.filter(MenuItem.name.in_(ordered_names)).limit(6).all()
+
+
+def menu_item_tags(menu_item):
+    tags = []
+    lowered_name = menu_item.name.lower()
+    if menu_item.healthy_badge or menu_item.category == "diet":
+        tags.append("Healthy 🥗")
+    if menu_item.category == "protein" or any(
+        keyword in lowered_name for keyword in HIGH_PROTEIN_KEYWORDS
+    ):
+        tags.append("High Protein 💪")
+    if menu_item.calories is not None and menu_item.calories <= 250:
+        tags.append("Low Calorie 🔻")
+    if is_popular_item(menu_item):
+        tags.append("Popular 🔥")
+    return tags
+
+
+def is_popular_item(menu_item):
+    lowered_name = menu_item.name.lower()
+    return menu_item.restaurant.rating >= 4.6 or any(
+        keyword in lowered_name for keyword in {"biryani", "pizza", "haleem", "dosa"}
+    )
+
+
+def explain_diet_match(menu_item, goal):
+    if goal == "weight_loss":
+        return f"{menu_item.name} stays lighter at about {menu_item.calories or 'balanced'} kcal and fits a cleaner plate."
+    if goal == "muscle_gain":
+        return f"{menu_item.name} supports muscle gain with stronger protein-focused ingredients."
+    if goal == "vegetarian":
+        return f"{menu_item.name} keeps your meal vegetarian while still covering nutrition goals."
+    return f"{menu_item.name} offers a balanced choice with smart calories and supportive nutrients."
+
+
+def explain_avoid_match(menu_item, goal):
+    if goal == "weight_loss":
+        return f"{menu_item.name} is better limited because it is more calorie-dense for a weight-loss goal."
+    if goal == "muscle_gain":
+        return f"{menu_item.name} is less useful for muscle gain because it gives fewer quality nutrients."
+    return f"{menu_item.name} is better enjoyed occasionally compared with the stronger matches above."

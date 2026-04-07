@@ -5,9 +5,9 @@
     <div class="section-heading">
         <div>
             <p class="eyebrow">Checkout</p>
-            <h1>Confirm your payment</h1>
+            <h1>Proceed to payment</h1>
         </div>
-        <p class="section-copy">Stripe test mode is supported through environment variables. If keys are not configured, the app falls back to a demo success flow for evaluation.</p>
+        <p class="section-copy">FoodSprint uses Razorpay test mode for production-style checkout. If keys are not configured, you can still complete a demo payment for evaluation.</p>
     </div>
     <div class="checkout-grid">
         <div class="summary-card">
@@ -23,11 +23,29 @@
                 <strong>Rs. {{ "%.0f"|format(cart_data.total) }}</strong>
             </div>
         </div>
-        <form method="post" class="payment-card">
-            <label><input type="radio" name="payment_method" value="demo" checked> Demo payment</label>
-            <label><input type="radio" name="payment_method" value="stripe" {% if not config.STRIPE_SECRET_KEY %}disabled{% endif %}> Stripe Checkout {% if not config.STRIPE_SECRET_KEY %}(configure keys to enable){% endif %}</label>
-            <button class="btn btn-primary" type="submit">Pay now</button>
-        </form>
+        <div class="payment-card">
+            <div class="payment-option-card">
+                <h3>Razorpay test checkout</h3>
+                <p>{% if razorpay_enabled %}Launch Razorpay checkout and complete a secure test payment.{% else %}Razorpay keys are not configured yet. Use demo payment or add your test keys.{% endif %}</p>
+                <button class="btn btn-primary summary-btn" id="razorpay-pay-btn" {% if not razorpay_enabled %}disabled{% endif %}>Pay with Razorpay</button>
+            </div>
+            <form method="post" class="payment-fallback-form">
+                <h3>Demo fallback</h3>
+                <p>Use this path if you are evaluating the app without payment credentials.</p>
+                <button class="btn btn-secondary summary-btn" type="submit">Complete demo payment</button>
+            </form>
+        </div>
     </div>
 </section>
+{% endblock %}
+{% block scripts %}
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+    window.foodSprintCheckout = {
+        enabled: {{ 'true' if razorpay_enabled else 'false' }},
+        verifyUrl: "{{ url_for('main.verify_razorpay_payment') }}",
+        createOrderUrl: "{{ url_for('main.create_razorpay_checkout_order') }}",
+        failureUrl: "{{ url_for('main.payment_failure') }}"
+    };
+</script>
 {% endblock %}

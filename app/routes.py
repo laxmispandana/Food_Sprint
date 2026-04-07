@@ -1,7 +1,6 @@
 import uuid
 from functools import wraps
 
-import stripe
 from flask import (
     Blueprint,
     current_app,
@@ -15,11 +14,18 @@ from flask import (
 )
 
 from .extensions import db
-from .models import MenuItem, Order, OrderItem, Restaurant, User
+from .models import Admin, MenuItem, Order, OrderItem, Restaurant, Review, User
+from .services.payments import (
+    create_razorpay_order,
+    razorpay_configured,
+    verify_razorpay_signature,
+)
 from .services.recommendations import (
     build_diet_recommendation,
     haversine_distance,
     history_based_recommendations,
+    is_popular_item,
+    menu_item_tags,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -42,7 +48,12 @@ def current_user():
 
 
 def admin_logged_in():
-    return session.get("admin_authenticated", False)
+    return session.get("admin_id") is not None
+
+
+def current_admin():
+    admin_id = session.get("admin_id")
+    return Admin.query.get(admin_id) if admin_id else None
 
 
 def get_cart():
@@ -78,6 +89,9 @@ def inject_globals():
         "nav_user": current_user(),
         "cart_meta": cart_context(),
         "admin_logged_in": admin_logged_in(),
+        "nav_admin": current_admin(),
+        "menu_item_tags": menu_item_tags,
+        "is_popular_item": is_popular_item,
     }
 
 
@@ -155,11 +169,19 @@ def admin_login():
     if request.method == "POST":
         email = request.form["email"].strip().lower()
         password = request.form["password"]
-        if (
-            email == current_app.config["ADMIN_EMAIL"].strip().lower()
-            and password == current_app.config["ADMIN_PASSWORD"]
-        ):
-            session["admin_authenticated"] = True
+        admin = Admin.query.filter_by(email=email).first()
+        if not admin and email == current_app.config["ADMIN_EMAIL"].strip().lower():
+            seeded_admin = Admin(
+                name="Platform Admin",
+                email=current_app.config["ADMIN_EMAIL"].strip().lower(),
+            )
+            seeded_admin.set_password(current_app.config["ADMIN_PASSWORD"])
+            db.session.add(seeded_admin)
+            db.session.commit()
+            admin = seeded_admin
+
+        if admin and admin.check_password(password):
+            session["admin_id"] = admin.id
             flash("Admin access granted.", "success")
             return redirect(url_for("main.admin_dashboard"))
 
@@ -169,9 +191,28 @@ def admin_login():
     return render_template("admin_login.html")
 
 
+@main_bp.route("/admin/register", methods=["GET", "POST"])
+def admin_register():
+    if request.method == "POST":
+        email = request.form["email"].strip().lower()
+        if Admin.query.filter_by(email=email).first():
+            flash("An admin account with that email already exists.", "danger")
+            return redirect(url_for("main.admin_register"))
+
+        admin = Admin(name=request.form["name"].strip(), email=email)
+        admin.set_password(request.form["password"])
+        db.session.add(admin)
+        db.session.commit()
+        session["admin_id"] = admin.id
+        flash("Admin account created successfully.", "success")
+        return redirect(url_for("main.admin_dashboard"))
+
+    return render_template("admin_register.html")
+
+
 @main_bp.route("/admin/logout")
 def admin_logout():
-    session.pop("admin_authenticated", None)
+    session.pop("admin_id", None)
     flash("Admin session closed.", "info")
     return redirect(url_for("main.index"))
 
@@ -182,11 +223,31 @@ def admin_dashboard():
     restaurants = Restaurant.query.order_by(Restaurant.name.asc()).all()
     recent_orders = Order.query.order_by(Order.created_at.desc()).limit(8).all()
     total_menu_items = MenuItem.query.count()
+    recent_reviews = Review.query.order_by(Review.created_at.desc()).limit(10).all()
+    order_summaries = []
+    for order in recent_orders:
+        grouped_restaurants = {}
+        for order_item in order.order_items:
+            restaurant = order_item.menu_item.restaurant
+            summary = grouped_restaurants.setdefault(
+                restaurant.id,
+                {
+                    "restaurant": restaurant,
+                    "item_names": [],
+                    "quantity": 0,
+                },
+            )
+            summary["item_names"].append(order_item.menu_item.name)
+            summary["quantity"] += order_item.quantity
+        order_summaries.append({"order": order, "restaurants": list(grouped_restaurants.values())})
+
     return render_template(
         "admin_dashboard.html",
         restaurants=restaurants,
         recent_orders=recent_orders,
+        order_summaries=order_summaries,
         total_menu_items=total_menu_items,
+        recent_reviews=recent_reviews,
     )
 
 
@@ -236,7 +297,52 @@ def admin_create_menu_item():
 def restaurant_detail(restaurant_id):
     restaurant = Restaurant.query.get_or_404(restaurant_id)
     related = MenuItem.query.filter_by(restaurant_id=restaurant.id).all()
-    return render_template("restaurant_detail.html", restaurant=restaurant, menu_items=related)
+    reviews = (
+        Review.query.filter_by(restaurant_id=restaurant.id)
+        .order_by(Review.created_at.desc())
+        .limit(10)
+        .all()
+    )
+    recommended_items = sorted(
+        related,
+        key=lambda item: (
+            "Popular 🔥" not in menu_item_tags(item),
+            "Healthy 🥗" not in menu_item_tags(item),
+            item.price,
+        ),
+    )[:4]
+    return render_template(
+        "restaurant_detail.html",
+        restaurant=restaurant,
+        menu_items=related,
+        reviews=reviews,
+        recommended_items=recommended_items,
+    )
+
+
+@main_bp.route("/restaurants/<int:restaurant_id>/reviews", methods=["POST"])
+@login_required
+def add_review(restaurant_id):
+    restaurant = Restaurant.query.get_or_404(restaurant_id)
+    menu_item_id = request.form.get("menu_item_id", type=int)
+    rating = request.form.get("rating", type=int)
+    comment = request.form.get("comment", "").strip()
+
+    if rating is None or rating < 1 or rating > 5 or not comment:
+        flash("Please submit a rating between 1 and 5 and write a review comment.", "danger")
+        return redirect(url_for("main.restaurant_detail", restaurant_id=restaurant.id))
+
+    review = Review(
+        user_id=session["user_id"],
+        restaurant_id=restaurant.id,
+        menu_item_id=menu_item_id if menu_item_id else None,
+        rating=rating,
+        comment=comment,
+    )
+    db.session.add(review)
+    db.session.commit()
+    flash("Thanks for sharing your review.", "success")
+    return redirect(url_for("main.restaurant_detail", restaurant_id=restaurant.id))
 
 
 @main_bp.route("/cart")
@@ -285,6 +391,7 @@ def update_cart():
 def restaurants_data():
     user_lat = request.args.get("lat", type=float)
     user_lng = request.args.get("lng", type=float)
+    radius = request.args.get("radius", type=float, default=10)
     search = request.args.get("search", "").strip().lower()
     food_type = request.args.get("food_type", "").strip().lower()
     healthy = request.args.get("healthy", "").strip().lower() == "true"
@@ -305,6 +412,8 @@ def restaurants_data():
         distance = None
         if user_lat is not None and user_lng is not None:
             distance = haversine_distance(user_lat, user_lng, restaurant.lat, restaurant.lng)
+            if radius and distance > radius:
+                continue
 
         payload.append(
             {
@@ -321,6 +430,7 @@ def restaurants_data():
                 "lng": restaurant.lng,
                 "delivery_time": restaurant.delivery_time,
                 "description": restaurant.description,
+                "popular": restaurant.rating >= 4.6,
             }
         )
 
@@ -335,6 +445,28 @@ def diet():
     return render_template("diet.html", result=result, selected_goal=goal)
 
 
+def create_local_order(meta, payment_status="pending", status="Awaiting Payment"):
+    order = Order(
+        user_id=session["user_id"],
+        total_amount=meta["total"],
+        payment_status=payment_status,
+        status=status,
+    )
+    db.session.add(order)
+    db.session.flush()
+    for item in meta["entries"]:
+        db.session.add(
+            OrderItem(
+                order_id=order.id,
+                menu_item_id=item["menu_item"].id,
+                quantity=item["quantity"],
+                price=item["menu_item"].price,
+            )
+        )
+    db.session.commit()
+    return order
+
+
 @main_bp.route("/checkout", methods=["GET", "POST"])
 @login_required
 def checkout():
@@ -344,75 +476,99 @@ def checkout():
         return redirect(url_for("main.index"))
 
     if request.method == "POST":
-        payment_method = request.form.get("payment_method", "demo")
-        order = Order(
-            user_id=session["user_id"],
-            total_amount=meta["total"],
-            payment_status="pending",
-            status="Preparing",
-        )
-        db.session.add(order)
-        db.session.flush()
-        for item in meta["entries"]:
-            db.session.add(
-                OrderItem(
-                    order_id=order.id,
-                    menu_item_id=item["menu_item"].id,
-                    quantity=item["quantity"],
-                    price=item["menu_item"].price,
-                )
-            )
-        db.session.commit()
-
-        if payment_method == "stripe" and current_app.config["STRIPE_SECRET_KEY"]:
-            stripe.api_key = current_app.config["STRIPE_SECRET_KEY"]
-            checkout_session = stripe.checkout.Session.create(
-                mode="payment",
-                success_url=url_for("main.payment_success", order_id=order.id, _external=True),
-                cancel_url=url_for("main.payment_cancel", order_id=order.id, _external=True),
-                line_items=[
-                    {
-                        "price_data": {
-                            "currency": "inr",
-                            "unit_amount": int(item["menu_item"].price * 100),
-                            "product_data": {"name": item["menu_item"].name},
-                        },
-                        "quantity": item["quantity"],
-                    }
-                    for item in meta["entries"]
-                ],
-            )
-            return redirect(checkout_session.url, code=303)
-
-        order.payment_status = "paid"
+        order = create_local_order(meta, payment_status="paid", status="Preparing")
         order.payment_reference = f"DEMO-{uuid.uuid4().hex[:10].upper()}"
         db.session.commit()
         session["cart"] = {}
         flash("Demo payment completed successfully.", "success")
         return redirect(url_for("main.order_confirmation", order_id=order.id))
 
-    return render_template("checkout.html", cart_data=meta)
+    return render_template(
+        "checkout.html",
+        cart_data=meta,
+        razorpay_enabled=razorpay_configured(),
+        razorpay_key_id=current_app.config["RAZORPAY_KEY_ID"],
+    )
 
 
-@main_bp.route("/payment/success")
+@main_bp.route("/payments/razorpay/order", methods=["POST"])
 @login_required
-def payment_success():
-    order = Order.query.get_or_404(request.args.get("order_id", type=int))
+def create_razorpay_checkout_order():
+    meta = cart_context()
+    if meta["count"] == 0:
+        return jsonify({"ok": False, "message": "Cart is empty."}), 400
+    if not razorpay_configured():
+        return jsonify({"ok": False, "message": "Razorpay is not configured."}), 400
+
+    try:
+        order = create_local_order(meta)
+        gateway_order = create_razorpay_order(order)
+        order.payment_reference = gateway_order["id"]
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({"ok": False, "message": "Unable to initialize Razorpay order."}), 502
+
+    return jsonify(
+        {
+            "ok": True,
+            "internal_order_id": order.id,
+            "razorpay_order_id": gateway_order["id"],
+            "amount": gateway_order["amount"],
+            "currency": gateway_order["currency"],
+            "key": current_app.config["RAZORPAY_KEY_ID"],
+            "name": "FoodSprint",
+            "description": "Telangana smart food ordering",
+            "prefill": {
+                "name": current_user().name,
+                "email": current_user().email,
+                "contact": current_user().phone,
+            },
+        }
+    )
+
+
+@main_bp.route("/payments/razorpay/verify", methods=["POST"])
+@login_required
+def verify_razorpay_payment():
+    payload = request.get_json(silent=True) or {}
+    order = Order.query.get_or_404(payload.get("internal_order_id"))
+    if order.user_id != session["user_id"]:
+        return jsonify({"ok": False, "message": "Unauthorized order access."}), 403
+
+    signature_ok = verify_razorpay_signature(
+        payload.get("razorpay_order_id", ""),
+        payload.get("razorpay_payment_id", ""),
+        payload.get("razorpay_signature", ""),
+    )
+    if not signature_ok:
+        order.payment_status = "failed"
+        order.status = "Payment Failed"
+        db.session.commit()
+        return jsonify({"ok": False, "message": "Signature verification failed."}), 400
+
     order.payment_status = "paid"
-    order.payment_reference = f"STRIPE-{uuid.uuid4().hex[:10].upper()}"
+    order.status = "Preparing"
+    order.payment_reference = payload.get("razorpay_payment_id")
     db.session.commit()
     session["cart"] = {}
-    return redirect(url_for("main.order_confirmation", order_id=order.id))
+    return jsonify(
+        {"ok": True, "redirect_url": url_for("main.order_confirmation", order_id=order.id)}
+    )
 
 
-@main_bp.route("/payment/cancel")
+@main_bp.route("/payment/failure")
 @login_required
-def payment_cancel():
-    order = Order.query.get_or_404(request.args.get("order_id", type=int))
-    order.payment_status = "failed"
-    db.session.commit()
-    flash("Payment was cancelled. You can try again.", "warning")
-    return redirect(url_for("main.checkout"))
+def payment_failure():
+    order = None
+    order_id = request.args.get("order_id", type=int)
+    if order_id:
+        order = Order.query.get(order_id)
+        if order:
+            order.payment_status = "failed"
+            order.status = "Payment Failed"
+            db.session.commit()
+    return render_template("payment_failure.html", order=order)
 
 
 @main_bp.route("/orders/<int:order_id>/confirmation")
