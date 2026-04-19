@@ -1,109 +1,107 @@
-# [FoodSprint](https://web-production-d28ec.up.railway.app)
+# FoodSprint
 
+FoodSprint is a Flask-based food ordering demo focused on Telangana restaurant discovery. The current app combines a seeded restaurant catalog, nearby search on OpenStreetMap, UPI QR checkout, diet-aware recommendations, and lightweight admin/staff operations tooling.
 
-A production-oriented Flask web application that combines food delivery workflows with AI-driven diet and order-history recommendations for restaurants across Telangana.
+## Current features
 
-## Features
+- Customer signup, login, logout, and session-based cart persistence
+- Seeded Telangana restaurant catalog with 11 restaurants and 110 menu items across Hyderabad, Warangal, Karimnagar, Nizamabad, and Khammam
+- Location-aware nearby discovery using browser geolocation, Leaflet maps, OpenStreetMap tiles, and Overpass API results
+- Hybrid nearby search that blends FoodSprint catalog entries with live OSM places
+- Filtering by city, keyword, distance, rating, restaurant type, and veg/non-veg preference
+- Restaurant detail pages with menu browsing, quantity controls, and customer reviews
+- Cart and mini-cart flows backed by JSON endpoints for a more dynamic UI
+- Checkout with admin-configured UPI ID, QR generation, manual payment confirmation, and order creation
+- Order tracking with a status timeline from `PLACED` to `DELIVERED`
+- Rule-based recommendations for weight loss, muscle gain, balanced diet, vegetarian goals, and repeat-order suggestions
+- Single-admin dashboard for UPI settings, staff account creation, order visibility, and review monitoring
+- Staff dashboard for moving orders through fulfillment stages one step at a time
+- Automatic database creation and demo seeding on first run
 
-- Session-based authentication with signup, login, logout, and SQLite persistence
-- Telangana restaurant discovery with GPS-based nearest-first sorting and Leaflet/OpenStreetMap
-- Swiggy-like restaurant cards, responsive filtering, and modern mobile-friendly UI
-- Dynamic restaurant menus with 10+ seeded items each, calorie hints, smart tags, and API-backed food images
-- Session cart, checkout flow, order confirmation, and Razorpay test-mode payment integration
-- Goal-based diet planner for weight loss, muscle gain, balanced diet, and vegetarian preferences
-- History-based recommendations driven by previous orders
-- Dynamic food imagery via Spoonacular recipe search
-- Admin panel for adding restaurants and menu items
-- Admin registration, customer reviews, and restaurant-level order visibility in admin
+## Tech stack
 
-## Stack
-
-- Frontend: HTML, Jinja templates, CSS, JavaScript, Leaflet
-- Backend: Flask, SQLAlchemy
-- Database: SQLite
-- Payments: Razorpay test mode with demo fallback
-- AI logic: Python rule-based recommendation engine
+- Backend: Flask, SQLAlchemy, Flask-Migrate, Jinja2
+- Frontend: HTML templates, CSS, vanilla JavaScript, Leaflet, Leaflet.markercluster
+- Database: SQLite by default, PostgreSQL supported through `DATABASE_URL`
+- Payments: Demo UPI QR flow with SVG QR generation via `qrcode`
+- Discovery: OpenStreetMap + Overpass API
+- Deployment: Gunicorn, Docker, Docker Compose, Render, Railway
 
 ## Run locally
 
-1. Create a virtual environment and activate it.
+1. Create and activate a virtual environment.
 2. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Copy `.env.example` to `.env` and set keys as needed.
+3. Copy `.env.example` to `.env`.
 4. Start the app:
 
 ```bash
 python run.py
 ```
 
-5. Open `http://127.0.0.1:5000`.
+5. Open [http://127.0.0.1:5000](http://127.0.0.1:5000).
 
-The database is created automatically on first run and comes pre-seeded with Telangana restaurants and menus.
+The app creates the database automatically on first boot and seeds demo restaurants, menu items, one admin account, and one staff account.
 
-To refresh restaurant and menu images after adding a `SPOONACULAR_API_KEY`:
+## Demo accounts
 
-```bash
-python refresh_images.py
-```
+- Admin: `admin@foodsprint.com` / `admin123`
+- Staff: `staff@foodsprint.com` / `staff123`
+- Customer: create an account from the signup page
 
 ## Environment variables
 
+The current Flask app mainly relies on these settings:
+
 - `SECRET_KEY`
 - `DATABASE_URL`
-- `SPOONACULAR_API_KEY`
-- `RAZORPAY_KEY_ID`
-- `RAZORPAY_KEY_SECRET`
-- `ADMIN_EMAIL`
-- `ADMIN_PASSWORD`
-- `APP_BASE_URL`
+- `FOODSPRINT_UPI_ID`
+- `FOODSPRINT_UPI_NAME`
+- `STAFF_LIMIT`
+- `FLASK_ENV`
+- `DEMO_RESET_DB`
+
+Notes:
+
+- `DATABASE_URL` defaults to `sqlite:///food_ordering.db` for local development.
+- `DEMO_RESET_DB=true` resets the local SQLite demo database on startup.
+- Some repo files still contain older placeholders such as `REDIS_URL`, `SPOONACULAR_API_KEY`, `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `APP_BASE_URL`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD`. Those are not required for the current checkout and discovery flow described above.
+
+## Docker
+
+To run the full local stack with PostgreSQL:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- the Flask web app
+- PostgreSQL 16
+- Redis 7
 
 ## Deployment
 
-### Render or Railway
-
-- Set the start command to `gunicorn run:app`
-- Add the environment variables from `.env.example`
-- Use a managed database in production instead of SQLite
-- For Render, a starter blueprint is included in `render.yaml`
-
 ### Render
 
-1. Push this project to GitHub.
-2. In Render, create a new Blueprint and select the repository.
-3. Render will read `render.yaml` and create:
-   - one Python web service
-   - one managed PostgreSQL database
-4. Set `APP_BASE_URL` to your Render service URL after the first deploy.
-5. Optionally add `SPOONACULAR_API_KEY`, `RAZORPAY_KEY_ID`, and `RAZORPAY_KEY_SECRET`.
-
-Render’s Flask deployment docs currently recommend using Gunicorn for the start command.
+- A starter blueprint is included in [`render.yaml`](render.yaml).
+- Use the Gunicorn start command: `gunicorn --worker-class gthread --threads 4 --workers 1 run:app`
+- Prefer PostgreSQL in production instead of SQLite.
+- The Render manifest still includes some legacy environment variable placeholders from earlier iterations of the project.
 
 ### Railway
 
-1. Push this project to GitHub.
-2. In Railway, create a new project from the GitHub repo.
-3. Add a PostgreSQL database service.
-4. Set these variables on the web service:
-   - `SECRET_KEY`
-   - `DATABASE_URL`
-   - `APP_BASE_URL`
-   - `SPOONACULAR_API_KEY` if you want live food images
-   - `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` if you want live test checkout
-5. Railway will detect the Python app and you can use `gunicorn run:app` as the start command.
+- Railway can run the same Gunicorn command used above.
+- Attach a PostgreSQL database and set `DATABASE_URL`, `SECRET_KEY`, and your UPI configuration.
 
-### Netlify or Vercel
+## Current app notes
 
-This project is currently rendered server-side with Flask. For Netlify/Vercel, either:
-
-- deploy the Flask app as a single full-stack service, or
-- split the frontend into a React/Vite client and keep this Flask backend as an API service
-
-## Notes
-
-- If Razorpay keys are not configured, checkout falls back to a demo payment success path for evaluation.
-- Food images are fetched from Spoonacular recipe search and cached locally in `app/image_cache.json`.
-- If you deploy on Render or Railway, use PostgreSQL rather than SQLite because hosted filesystems are not a good primary database for production.
+- The active customer checkout path is the UPI QR flow shown in the UI.
+- Payment confirmation is demo-friendly: the user scans the QR and then clicks "I have paid" to mark the payment as successful.
+- The nearby discovery experience falls back to seeded catalog results if geolocation is denied or Overpass is unavailable.
+- GitHub Actions is configured to compile the app, run `pytest`, and build the Docker image on CI.
